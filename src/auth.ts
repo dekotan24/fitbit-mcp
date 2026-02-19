@@ -5,7 +5,7 @@ import { tokenStore } from "./tokenStore.js";
 const FITBIT_AUTH_URL = "https://www.fitbit.com/oauth2/authorize";
 const FITBIT_TOKEN_URL = "https://api.fitbit.com/oauth2/token";
 
-const SCOPES = ["sleep", "heartrate", "activity", "profile"].join(" ");
+const SCOPES = ["sleep", "heartrate", "activity", "profile", "weight", "nutrition", "oxygen_saturation", "respiratory_rate", "temperature", "cardio_fitness", "settings"].join(" ");
 
 export const buildAuthUrl = (): string => {
   const params = new URLSearchParams({
