@@ -49,19 +49,35 @@ app.get("/health", (_req, res) => {
 
 // MCP Streamable HTTPエンドポイント
 app.all("/sse", async (req, res) => {
-  const server = new McpServer({
-    name: "fitbit-mcp",
-    version: "1.0.0",
-  });
+  try {
+    const server = new McpServer({
+      name: "fitbit-mcp",
+      version: "1.0.0",
+    });
 
-  registerTools(server);
+    registerTools(server);
 
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined, // stateless mode
-  });
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // stateless mode
+    });
 
-  await server.connect(transport);
-  await transport.handleRequest(req, res, req.body);
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    console.error("MCP handler error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+});
+
+// プロセスクラッシュ防止
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
 });
 
 app.listen(PORT, () => {
