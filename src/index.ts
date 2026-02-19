@@ -2,12 +2,14 @@
 import "dotenv/config";
 import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { exchangeCodeForToken } from "./auth.js";
 import { registerTools } from "./mcpTools.js";
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
+
+app.use(express.json());
 
 // OAuth callbackエンドポイント
 app.get("/callback", async (req, res) => {
@@ -45,41 +47,25 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// MCP SSEエンドポイント
-const transports: Record<string, SSEServerTransport> = {};
-
-app.get("/sse", async (req, res) => {
-  const transport = new SSEServerTransport("/messages", res);
-  const sessionId = transport.sessionId;
-  transports[sessionId] = transport;
-
+// MCP Streamable HTTPエンドポイント
+app.all("/sse", async (req, res) => {
   const server = new McpServer({
     name: "fitbit-mcp",
     version: "1.0.0",
   });
 
   registerTools(server);
-  await server.connect(transport);
 
-  req.on("close", () => {
-    delete transports[sessionId];
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined, // stateless mode
   });
-});
 
-app.post("/messages", express.json(), async (req, res) => {
-  const sessionId = req.query.sessionId as string;
-  const transport = transports[sessionId];
-
-  if (!transport) {
-    res.status(404).json({ error: "Session not found" });
-    return;
-  }
-
-  await transport.handlePostMessage(req, res);
+  await server.connect(transport);
+  await transport.handleRequest(req, res, req.body);
 });
 
 app.listen(PORT, () => {
   console.log(`🚀 Fitbit MCP Server running on port ${PORT}`);
-  console.log(`📍 MCP SSE endpoint: http://localhost:${PORT}/sse`);
-  console.log(`🔐 OAuth callback: http://localhost:${PORT}/callback`);
+  console.log(`📍 MCP endpoint: https://fitbit.fanet.work/sse`);
+  console.log(`🔐 OAuth callback: https://fitbit.fanet.work/callback`);
 });
